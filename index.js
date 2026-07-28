@@ -42,6 +42,31 @@ const db = new Firestore({
 });
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
+const TIMEZONE_OFFSET = "+04:00";
+const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Checks if the disconnection date (relative to UTC+4) happened more than a day ago.
+ * 
+ * @param {string} dateStr - Date string in "YYYY-MM-DD HH:mm" format.
+ * @returns {boolean} True if the date is in the last 24 hours, false otherwise.
+ */
+const isDisconnectedMoreThanDayAgo = (dateStr) => {
+  if (!dateStr) return false;
+
+  // 1. Format the raw string to ISO 8601 with the UTC+4 offset
+  // "2026-07-16 23:35" -> "2026-07-16T23:35+04:00"
+  const formattedIsoString = dateStr.replace(' ', 'T') + TIMEZONE_OFFSET;
+  const disconnectionDate = new Date(formattedIsoString);
+
+  // 2. Set up current time and the "one day ago" boundary
+  const now = new Date();
+  const oneDayAgo = new Date(now.getTime() - ONE_DAY_IN_MS);
+
+  // 3. Return false if it happened within the last 24 hours
+  return disconnectionDate <= oneDayAgo;
+}
+
 /**
  * Express request object provided by GCP Cloud Functions.
  * @typedef {import('express').Request} Request
@@ -80,7 +105,6 @@ export const checkPowerOutages = async (_req, res) => {
     }
 
     const tasks = json.data;
-    console.log(tasks);
     const collectionRef = db.collection(FIRESTORE_COLLECTION_ID);
 
     for (const task of tasks) {
@@ -93,6 +117,15 @@ export const checkPowerOutages = async (_req, res) => {
       }
 
       console.log(`Processing task ${taskIdStr}...`);
+
+      if (isDisconnectedMoreThanDayAgo(task.disconnectionDate)) {
+        await docRef.set({
+          processedAt: new Date().toISOString(),
+          taskName: task.taskName,
+        });
+        console.log(`Task ${taskIdStr} was disconnected too long ago, skipping`);
+        continue;
+      }
 
       // 1. Combine Name and Area into a clear translation prompt
       const prompt = `
