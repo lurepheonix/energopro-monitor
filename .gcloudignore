@@ -7,9 +7,11 @@
 #   $ gcloud topic gcloudignore
 #
 
-# Ignore everything
+# Ignore everything (include top-level dir)
 *
+!.
 # Allow only what's explicitly uploaded to gcloud
 !index.js
 !package.json
 !pnpm-lock.yaml
+!pnpm-workspace.yaml
