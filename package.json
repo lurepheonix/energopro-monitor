@@ -10,10 +10,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "pnpm@11.17.0",
   "dependencies": {
-    "@google-cloud/firestore": "^8.6.0",
-    "@google-cloud/functions-framework": "^5.0.2",
-    "@google/genai": "^2.10.0"
+    "@google-cloud/firestore": "^8.7.0",
+    "@google-cloud/functions-framework": "^5.0.5",
+    "@google/genai": "^2.13.0"
   }
 }
