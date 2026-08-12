@@ -46,24 +46,52 @@ const TIMEZONE_OFFSET = "+04:00";
 const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * Converts a date string into a Date object using the timezone offset
+ * @param {string} dateStr - e.g., "2026-08-11 20:55"
+ * @returns {Date}
+ */
+function parseTaskDate(dateStr) {
+  const formattedIsoString = dateStr.replace(' ', 'T') + TIMEZONE_OFFSET;
+  return new Date(formattedIsoString);
+}
+
+/**
+ * Extracts month and day as "MMDD" from a Date object
+ * @param {Date} dateObj 
+ * @returns {string} - e.g., "0811"
+ */
+function getMonthAndDay(dateObj) {
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return month + day;
+}
+
+/**
+ * Extracts year, month, and day as "YYYYMMDD" from a Date object
+ * @param {Date} dateObj
+ * @returns {string} - e.g., "20260811"
+ */
+function getYearMonthAndDay(dateObj) {
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+
+  return String(year) + month + day;
+}
+
+/**
  * Checks if the disconnection date (relative to UTC+4) happened more than a day ago.
  * 
- * @param {string} dateStr - Date string in "YYYY-MM-DD HH:mm" format.
+ * @param {Date} disconnectionDate 
  * @returns {boolean} True if the date is in the last 24 hours, false otherwise.
  */
-const isDisconnectedMoreThanDayAgo = (dateStr) => {
-  if (!dateStr) return false;
+const isDisconnectedMoreThanDayAgo = (disconnectionDate) => {
 
-  // 1. Format the raw string to ISO 8601 with the UTC+4 offset
-  // "2026-07-16 23:35" -> "2026-07-16T23:35+04:00"
-  const formattedIsoString = dateStr.replace(' ', 'T') + TIMEZONE_OFFSET;
-  const disconnectionDate = new Date(formattedIsoString);
-
-  // 2. Set up current time and the "one day ago" boundary
+  // 1. Set up current time and the "one day ago" boundary
   const now = new Date();
   const oneDayAgo = new Date(now.getTime() - ONE_DAY_IN_MS);
 
-  // 3. Return false if it happened within the last 24 hours
+  // 2. Return false if it happened within the last 24 hours
   return disconnectionDate <= oneDayAgo;
 }
 
@@ -118,7 +146,9 @@ export const checkPowerOutages = async (_req, res) => {
 
       console.log(`Processing task ${taskIdStr}...`);
 
-      if (isDisconnectedMoreThanDayAgo(task.disconnectionDate)) {
+      const disconnectionDate = parseTaskDate(task.disconnectionDate);
+
+      if (!task.disconnectionDate || isDisconnectedMoreThanDayAgo(disconnectionDate)) {
         await docRef.set({
           processedAt: new Date().toISOString(),
           taskName: task.taskName,
@@ -178,13 +208,15 @@ export const checkPowerOutages = async (_req, res) => {
           ? "Western region"
           : task.regionName;
       const cityName = task.scName === "ბათუმი" ? "Batumi" : task.scName;
+      const monthAndDay = getMonthAndDay(disconnectionDate);
+      const yearMonthAndDay = getYearMonthAndDay(disconnectionDate);
 
       // 3. Format Telegram post using HTML (more resilient to raw text symbols than Markdown)
       const telegramMessage = `
-⚠️ <b>New Power Outage Alert #${task.taskName}</b>
-<b>📍 Region:</b> ${regionName} (${cityName})
+#on${yearMonthAndDay} #on${monthAndDay}
 
 <b>📝 Details:</b> ${translation.englishName}
+<b>📍 Region:</b> ${regionName} (${cityName})
 <b>🛣️ Affected Areas:</b> ${translation.englishArea}
 
 <b>👥 Affected Customers:</b> ${task.scEffectedCustomers}
