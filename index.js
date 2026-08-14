@@ -26,13 +26,14 @@ const requireEnv = (name, defaultValue) => {
 };
 // import fetch from 'node-fetch';
 
-const API_ENDPOINT = requireEnv("API_ENDPOINT");
+const API_ENDPOINT = requireEnv("API_ENDPOINT", "https://my.energo-pro.ge/owback/searchAlerts");
 // default to Batumi
 const CITY = requireEnv("CITY", "ბათუმი");
 
 const FIRESTORE_COLLECTION_ID = requireEnv("FIRESTORE_COLLECTION_ID");
 const FIRESTORE_DATABASE_ID = requireEnv("FIRESTORE_DATABASE_ID");
 const GEMINI_API_KEY = requireEnv("GEMINI_API_KEY");
+const GEMINI_MODEL = requireEnv("GEMINI_MODEL", "gemini-2.5-flash");
 
 const TELEGRAM_CHAT_ID = requireEnv("TELEGRAM_CHAT_ID");
 const TELEGRAM_TOKEN = requireEnv("TELEGRAM_BOT_TOKEN");
@@ -57,7 +58,7 @@ function parseTaskDate(dateStr) {
 
 /**
  * Extracts month and day as "MMDD" from a Date object
- * @param {Date} dateObj 
+ * @param {Date} dateObj
  * @returns {string} - e.g., "0811"
  */
 function getMonthAndDay(dateObj) {
@@ -81,8 +82,8 @@ function getYearMonthAndDay(dateObj) {
 
 /**
  * Checks if the disconnection date (relative to UTC+4) happened more than a day ago.
- * 
- * @param {Date} disconnectionDate 
+ *
+ * @param {Date} disconnectionDate
  * @returns {boolean} True if the date is in the last 24 hours, false otherwise.
  */
 const isDisconnectedMoreThanDayAgo = (disconnectionDate) => {
@@ -160,10 +161,10 @@ export const checkPowerOutages = async (_req, res) => {
       // 1. Combine Name and Area into a clear translation prompt
       const prompt = `
         Translate this Georgian utility outage information into English.
-        
+
         Task Name/Reason: "${task.taskName}"
         Affected Areas/Streets: "${task.disconnectionArea}"
-        
+
         Guidelines:
         - Keep street/location names recognizable (e.g., "Sherif Khimshiashvili", "Shota Rustaveli", "Gorgiladze").
         - Clean up repeated or messy street listings into a legible comma-separated list.
@@ -171,7 +172,7 @@ export const checkPowerOutages = async (_req, res) => {
 
       // 2. Use Structured Outputs to guarantee a clean JSON response from Gemini
       const aiResponse = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: GEMINI_MODEL,
         contents: prompt,
         config: {
           responseMimeType: "application/json",

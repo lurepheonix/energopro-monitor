@@ -10,16 +10,16 @@ Currently, only a single chat is supported and some defaults are hardcoded since
 
 Usually, set to env.yaml (see env.example.yaml). Set them in .env file (see .env.local.example) if you want to run locally (e.g. for tests).
 
-| Variable Name           | Description                                        |
-| ----------------------- | -------------------------------------------------- |
-| API_ENDPOINT            | API endpoint, see env example for default          |
-| CITY                    | City to watch, see env example for default         |
-| FIRESTORE_COLLECTION_ID | ID of the Firestore collection for processed tasks |
-| FIRESTORE_DATABASE_ID   | Firestore database                                 |
-| GEMINI_API_KEY          | API key for Gemini                                 |
-| TELEGRAM_BOT_TOKEN      | Token for your Telegram bot                        |
-| TELEGRAM_CHAT_ID        | ID of the telegram chat/channel used for messages  |
-
+| Variable Name           | Description                                        | Default value                                |
+| ----------------------- | -------------------------------------------------- | -------------------------------------------- |
+| API_ENDPOINT            | API endpoint, see env example for default          | https://my.energo-pro.ge/owback/searchAlerts |
+| CITY                    | City to watch, see env example for default         | ბათუმი (Batumi)                              |
+| FIRESTORE_COLLECTION_ID | ID of the Firestore collection for processed tasks | -                                            |
+| FIRESTORE_DATABASE_ID   | Firestore database                                 | -                                            |
+| GEMINI_API_KEY          | API key for Gemini                                 | -                                            |
+| GEMINI_MODEL            | Default Gemini model                               | gemini-2.5-flash                             |
+| TELEGRAM_BOT_TOKEN      | Token for your Telegram bot                        | -                                            |
+| TELEGRAM_CHAT_ID        | ID of the telegram chat/channel used for messages  | -                                            |
 
 ## Sample deployment
 
