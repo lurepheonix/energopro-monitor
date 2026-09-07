@@ -15,5 +15,8 @@
     "@google-cloud/firestore": "^8.7.0",
     "@google-cloud/functions-framework": "^5.0.5",
     "@google/genai": "^2.13.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6"
   }
 }

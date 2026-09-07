@@ -31,7 +31,9 @@ const API_ENDPOINT = requireEnv("API_ENDPOINT", "https://my.energo-pro.ge/owback
 const CITY = requireEnv("CITY", "ბათუმი");
 
 const FIRESTORE_COLLECTION_ID = requireEnv("FIRESTORE_COLLECTION_ID");
-const FIRESTORE_DATABASE_ID = requireEnv("FIRESTORE_DATABASE_ID");
+const FIRESTORE_DATABASE_ID = requireEnv("FIRESTORE_DATABASE_ID", "(default)");
+const FIRESTORE_SEEN_INDEX = requireEnv("FIRESTORE_SEEN_INDEX", "_meta/seen_task_ids");
+const BACKFILL_INDEX = requireEnv("BACKFILL_INDEX", "false");
 const GEMINI_API_KEY = requireEnv("GEMINI_API_KEY");
 const GEMINI_MODEL = requireEnv("GEMINI_MODEL", "gemini-2.5-flash");
 
@@ -97,6 +99,28 @@ const isDisconnectedMoreThanDayAgo = (disconnectionDate) => {
 }
 
 /**
+ * One-off backfill of the seen-tasks index from the existing per-task docs.
+ * Triggered by deploying with BACKFILL_INDEX=true and requesting ?backfill=true.
+ * Sends no Telegram messages; only reads the collection and writes the index doc.
+ * @param {Response} res - The HTTP response object used to signal execution status.
+ * @returns {Promise<void>}
+ */
+async function backfillSeenIndex(res) {
+  const snapshot = await db.collection(FIRESTORE_COLLECTION_ID).get();
+  /** @type {Record<string, boolean>} */
+  const ids = {};
+  for (const doc of snapshot.docs) {
+    ids[doc.id] = true;
+  }
+  await db.doc(FIRESTORE_SEEN_INDEX).set({
+    backfilledAt: new Date().toISOString(),
+    ids,
+  });
+  console.log(`Backfilled ${snapshot.size} task IDs into ${FIRESTORE_SEEN_INDEX}.`);
+  res.status(200).send(`Backfilled ${snapshot.size} task IDs into ${FIRESTORE_SEEN_INDEX}.`);
+}
+
+/**
  * Express request object provided by GCP Cloud Functions.
  * @typedef {import('express').Request} Request
  */
@@ -116,6 +140,23 @@ const isDisconnectedMoreThanDayAgo = (disconnectionDate) => {
  */
 export const checkPowerOutages = async (_req, res) => {
   try {
+    if (BACKFILL_INDEX === "true" && _req?.query?.backfill === "true") {
+      await backfillSeenIndex(res);
+      return;
+    }
+
+    // Single index read per run; per-task existence checks below are in-memory.
+    const seenSnap = await db.doc(FIRESTORE_SEEN_INDEX).get();
+    if (!seenSnap.exists) {
+      console.log(`Seen index ${FIRESTORE_SEEN_INDEX} missing, skipping run.`);
+      res.status(200).send("Seen index not built yet, skipping.");
+      return;
+    }
+    /** @type {Record<string, boolean>} */
+    const seen = seenSnap.data()?.ids || {};
+    /** @type {Record<string, boolean>} */
+    const pendingIndexUpdates = {};
+
     const requestBody = JSON.stringify({
       search: CITY,
     });
@@ -138,12 +179,11 @@ export const checkPowerOutages = async (_req, res) => {
 
     for (const task of tasks) {
       const taskIdStr = String(task.taskId);
-      const docRef = collectionRef.doc(taskIdStr);
-      const doc = await docRef.get();
 
-      if (doc.exists) {
-        continue; // Skip already processed items
+      if (seen[taskIdStr]) {
+        continue; // Skip already processed items (in-memory check, no Firestore read)
       }
+      const docRef = collectionRef.doc(taskIdStr);
 
       console.log(`Processing task ${taskIdStr}...`);
 
@@ -154,6 +194,7 @@ export const checkPowerOutages = async (_req, res) => {
           processedAt: new Date().toISOString(),
           taskName: task.taskName,
         });
+        pendingIndexUpdates[taskIdStr] = true;
         console.log(`Task ${taskIdStr} was disconnected too long ago, skipping`);
         continue;
       }
@@ -241,6 +282,14 @@ export const checkPowerOutages = async (_req, res) => {
         processedAt: new Date().toISOString(),
         taskName: task.taskName,
       });
+      pendingIndexUpdates[taskIdStr] = true;
+    }
+
+    // 6. Update the seen-tasks index in a single merged write
+    const newIdCount = Object.keys(pendingIndexUpdates).length;
+    if (newIdCount > 0) {
+      await db.doc(FIRESTORE_SEEN_INDEX).set({ ids: pendingIndexUpdates }, { merge: true });
+      console.log(`Indexed ${newIdCount} new task IDs.`);
     }
 
     res.status(200).send("Outage scan and translation complete.");

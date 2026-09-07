@@ -51,6 +51,23 @@ gcloud scheduler jobs create http power-outage-cron \
 
 This runs a cron job every 10 mins which is usually more than enough. Note that the same region is used in function and cron job deployment.
 
+## Seen-tasks index (saves Firestore reads)
+
+Instead of one Firestore `get()` per task per run, the function keeps a single
+index doc (default `_meta/seen_task_ids`, override via `FIRESTORE_SEEN_INDEX`)
+mapping processed task IDs to `true`. Each run costs 1 index read; new tasks are
+added with a single merged write. Per-task docs in `FIRESTORE_COLLECTION_ID`
+are still written as before.
+
+Backfill the index once after deploying (with the cron job disabled):
+
+1. Deploy with `BACKFILL_INDEX: "true"` in `env.yaml`.
+2. Trigger once: `curl "$FUNCTION_URL?backfill=true"` — sends no Telegram messages.
+3. Verify the index doc exists and its ID count matches the collection size.
+4. Set `BACKFILL_INDEX: "false"` and redeploy.
+
+Until the index exists, normal runs skip processing (no re-alerts).
+
 ## Running locally (e.g. for tests)
 
 Set all necessary variables to `.env` file. Then, run:
