@@ -35,7 +35,7 @@ const FIRESTORE_DATABASE_ID = requireEnv("FIRESTORE_DATABASE_ID", "(default)");
 const FIRESTORE_SEEN_INDEX = requireEnv("FIRESTORE_SEEN_INDEX", "_meta/seen_task_ids");
 const BACKFILL_INDEX = requireEnv("BACKFILL_INDEX", "false");
 const GEMINI_API_KEY = requireEnv("GEMINI_API_KEY");
-const GEMINI_MODEL = requireEnv("GEMINI_MODEL", "gemini-2.5-flash");
+const GEMINI_MODEL = requireEnv("GEMINI_MODEL", "gemini-3.6-flash");
 
 const TELEGRAM_CHAT_ID = requireEnv("TELEGRAM_CHAT_ID");
 const TELEGRAM_TOKEN = requireEnv("TELEGRAM_BOT_TOKEN");
